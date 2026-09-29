@@ -1,0 +1,75 @@
+name: Locked Test Kev
+
+on:
+  workflow_dispatch:
+    inputs:
+      trained_run:
+        description: Selected immutable Modal training run
+        required: true
+        default: clinc-travel-v1
+      result_prefix:
+        description: New immutable result prefix
+        required: true
+        default: clinc-travel-v1-locked
+      baseline:
+        description: Released Kev baseline
+        required: true
+        default: jaredpalmer/kev-4b
+
+permissions:
+  contents: read
+
+jobs:
+  locked-test:
+    runs-on: ubuntu-latest
+    environment: kev-training
+    env:
+      MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
+      MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
+      KEV_REF: f2bb629d670f5b746f712fc05550a098526c836b
+    steps:
+      - name: Check out dataset
+        uses: actions/checkout@v4
+        with:
+          path: dataset
+      - name: Check out pinned Kev
+        uses: actions/checkout@v4
+        with:
+          repository: jaredpalmer/kev
+          ref: f2bb629d670f5b746f712fc05550a098526c836b
+          path: kev
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: astral-sh/setup-uv@v6
+      - name: Verify locked partition
+        run: python dataset/scripts/build_kev_dataset.py --check
+      - name: Stage locked test without changing calibration
+        run: |
+          mkdir locked-data
+          cp dataset/generated/kev/calibration.jsonl locked-data/calibration.jsonl
+          cp dataset/generated/kev/test.jsonl locked-data/development.jsonl
+      - name: Score selected model once
+        run: >-
+          uvx modal run kev/skills/kev-finetune/scripts/kev_modal.py::evaluate
+          --data locked-data
+          --name '${{ inputs.result_prefix }}-finetuned'
+          --run '${{ inputs.trained_run }}'
+      - name: Score baseline once
+        run: >-
+          uvx modal run kev/skills/kev-finetune/scripts/kev_modal.py::evaluate
+          --data locked-data
+          --name '${{ inputs.result_prefix }}-baseline'
+          --run '${{ inputs.baseline }}'
+      - name: Paired bootstrap comparison
+        run: >-
+          uvx modal run kev/skills/kev-finetune/scripts/kev_modal.py::compare
+          --a '${{ inputs.result_prefix }}-finetuned'
+          --b '${{ inputs.result_prefix }}-baseline'
+      - name: Upload locked-test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.result_prefix }}-reports
+          path: runs/${{ inputs.result_prefix }}-*/
+          if-no-files-found: warn
