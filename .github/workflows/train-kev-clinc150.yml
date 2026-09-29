@@ -1,0 +1,70 @@
+name: Train Kev CLINC150
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_name:
+        description: Immutable Modal run name
+        required: true
+        default: clinc150-intent-v1
+      init_from:
+        description: Released Kev checkpoint
+        required: true
+        default: jaredpalmer/kev-4b
+
+permissions:
+  contents: read
+
+jobs:
+  train:
+    runs-on: ubuntu-latest
+    environment: kev-training
+    env:
+      MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
+      MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
+      KEV_REF: f2bb629d670f5b746f712fc05550a098526c836b
+    steps:
+      - name: Check out dataset
+        uses: actions/checkout@v4
+        with:
+          path: dataset
+      - name: Check out pinned Kev
+        uses: actions/checkout@v4
+        with:
+          repository: jaredpalmer/kev
+          ref: f2bb629d670f5b746f712fc05550a098526c836b
+          path: kev
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: astral-sh/setup-uv@v6
+      - name: Generate full intent benchmark
+        run: >-
+          python dataset/scripts/build_kev_dataset.py
+          --spec dataset/benchmarks/clinc150-intent/model.json
+          --output clinc150-intent
+      - name: Validate Kev tokenizer admission
+        run: |
+          uvx modal run kev/skills/kev-finetune/scripts/kev_modal.py::validate \
+            --data clinc150-intent \
+            --name '${{ inputs.run_name }}-preflight' \
+            --init-from '${{ inputs.init_from }}' | tee tokenizer-validation.log
+          if grep -Eq '"over_limit": [1-9][0-9]*' tokenizer-validation.log; then
+            echo "Tokenizer validation rejected one or more records" >&2
+            exit 1
+          fi
+      - name: Train, calibrate, and evaluate development
+        run: >-
+          uvx modal run kev/skills/kev-finetune/scripts/kev_modal.py::train
+          --data clinc150-intent
+          --name '${{ inputs.run_name }}'
+          --init-from '${{ inputs.init_from }}'
+      - name: Upload development reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.run_name }}-reports
+          path: |
+            runs/${{ inputs.run_name }}/
+            tokenizer-validation.log
+          if-no-files-found: warn

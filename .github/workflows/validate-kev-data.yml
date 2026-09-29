@@ -20,3 +20,8 @@ jobs:
         run: python -m unittest discover -s tests -v
       - name: Verify generated partitions
         run: python scripts/build_kev_dataset.py --check
+      - name: Generate full CLINC150 intent benchmark
+        run: >-
+          python scripts/build_kev_dataset.py
+          --spec benchmarks/clinc150-intent/model.json
+          --output '${{ runner.temp }}/clinc150-intent'
