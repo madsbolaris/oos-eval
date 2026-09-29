@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Convert one CLINC150 domain into deterministic, labelled Kev partitions."""
+"""Convert CLINC150 into deterministic, labelled Kev partitions."""
 
 import argparse
 import hashlib
@@ -25,7 +25,9 @@ def state_hash(state):
     return hashlib.sha256(normalized_state(state).encode()).hexdigest()
 
 
-def option_description(label):
+def option_description(spec, label):
+    if not spec["question"].get("describe_options", True):
+        return None
     if label == "oos":
         return "The request is outside the supported travel intents"
     return "Requests about " + label.replace("_", " ")
@@ -36,7 +38,7 @@ def question(spec, labels, label, source_split):
     return {
         "type": question_spec["type"],
         "instructions": question_spec["instructions"],
-        "criteria": {name: option_description(name) for name in labels},
+        "criteria": {name: option_description(spec, name) for name in labels},
         "label": label,
     }
 
@@ -78,20 +80,28 @@ def build(spec_path=DEFAULT_SPEC):
     spec = read_json(spec_path)
     source = read_json(ROOT / spec["source"]["data_file"])
     domains = read_json(ROOT / spec["source"]["domain_file"])
-    domain_labels = domains[spec["domain"]]
-    labels = [*domain_labels, spec["question"]["out_of_scope"]]
+    if spec["domain"] == "all":
+        domain_labels = [label for names in domains.values() for label in names]
+    else:
+        domain_labels = domains[spec["domain"]]
+    include_oos = spec["question"].get("include_out_of_scope", True)
+    labels = [*domain_labels]
+    if include_oos:
+        labels.append(spec["question"]["out_of_scope"])
     allowed = set(labels)
 
-    def convert(source_split, oos_split):
+    def convert(source_split, oos_split=None):
         selected = []
         label_counts = Counter()
         for index, (state, label) in enumerate(source[source_split]):
-            if label in allowed and label != spec["question"]["out_of_scope"]:
+            if label in allowed:
                 selected.append(record(spec, labels, state, label, source_split, index))
                 label_counts[label] += 1
         counts = set(label_counts.values())
         if set(label_counts) != set(domain_labels) or len(counts) != 1:
             raise ValueError(f"{source_split} is not balanced across the selected domain")
+        if not include_oos:
+            return selected
         oos_limit = counts.pop()
         offset = len(source[source_split])
         for index, (state, label) in enumerate(source[oos_split][:oos_limit], offset):
@@ -100,21 +110,26 @@ def build(spec_path=DEFAULT_SPEC):
             selected.append(record(spec, labels, state, label, oos_split, index))
         return selected
 
-    train = convert("train", "oos_train")
-    validation = convert("val", "oos_val")
+    train = convert("train", "oos_train" if include_oos else None)
+    validation = convert("val", "oos_val" if include_oos else None)
     calibration, development = split_validation(validation)
-    test = convert("test", "oos_test")
+    test = convert("test", "oos_test" if include_oos else None)
     partitions = {
         "train": train,
         "calibration": calibration,
         "development": development,
         "test": test,
     }
-    validate(partitions, labels, spec["question"]["id"])
+    validate(
+        partitions,
+        labels,
+        spec["question"]["id"],
+        reject_duplicate_states=not spec.get("allow_cross_partition_duplicates", False),
+    )
     return spec, partitions
 
 
-def validate(partitions, labels, question_id):
+def validate(partitions, labels, question_id, reject_duplicate_states=True):
     seen = {}
     expected = set(labels)
     for partition, rows in partitions.items():
@@ -126,7 +141,7 @@ def validate(partitions, labels, question_id):
             if not isinstance(state, str) or not state.strip():
                 raise ValueError(f"{partition} contains an empty state")
             key = state_hash(state)
-            if key in seen:
+            if reject_duplicate_states and key in seen:
                 raise ValueError(f"state appears in both {seen[key]} and {partition}: {state!r}")
             seen[key] = partition
             question_data = row.get("questions", {}).get(question_id)
@@ -156,7 +171,10 @@ def render(spec, partitions):
         "source": spec["source"],
         "domain": spec["domain"],
         "locked": ["test"],
-        "sampling": "All selected-domain rows; out-of-scope rows capped to one class per native split in source order.",
+        "sampling": spec.get(
+            "sampling",
+            "All selected-domain rows; out-of-scope rows capped to one class per native split in source order.",
+        ),
         "partitions": {},
     }
     for name in PARTITIONS:

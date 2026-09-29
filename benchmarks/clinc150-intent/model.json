@@ -1,0 +1,20 @@
+{
+  "domain": "all",
+  "source": {
+    "repository": "https://github.com/clinc/oos-eval",
+    "revision": "828f8093932c8fe6ca7936c3d2e52903b1c523de",
+    "data_file": "data/data_full.json",
+    "domain_file": "data/domains.json",
+    "license": "CC-BY-3.0"
+  },
+  "question": {
+    "id": "intent",
+    "type": "choice",
+    "instructions": "Which intent best describes this request?",
+    "out_of_scope": "oos",
+    "include_out_of_scope": false,
+    "describe_options": false
+  },
+  "allow_cross_partition_duplicates": true,
+  "sampling": "Official CLINC150 full-data protocol: all 150 in-scope intents and every native in-scope row; OOS rows excluded. Native validation is split deterministically by label for calibration and development."
+}

@@ -28,6 +28,29 @@ After selecting one trained run from development results, dispatch **Locked Test
 
 The transformed records remain derived from CLINC150 and are distributed under the repository's CC BY 3.0 license. Retain the citation below when using them.
 
+### Standard CLINC150 intent benchmark
+
+The travel task above is a narrow demonstration and is not directly comparable with published full-dataset results. `benchmarks/clinc150-intent/model.json` defines a separate, standard 150-way in-scope intent benchmark:
+
+- all 15,000 official in-scope training rows
+- 1,500 calibration and 1,500 development rows, made by splitting each intent's official validation rows evenly
+- all 4,500 official in-scope test rows, held untouched until one model is selected
+- no OOS rows; OOS detection requires a separate protocol and metrics
+
+Generate it on demand rather than committing repeated 150-option requests:
+
+```bash
+python3 scripts/build_kev_dataset.py \
+  --spec benchmarks/clinc150-intent/model.json \
+  --output generated/kev-clinc150
+```
+
+Each choice uses the 150 canonical intent names with null descriptions. Kev therefore sees meaningful option names, unlike a conventional opaque classifier head; results should disclose this. The source dataset also contains five normalized utterances duplicated across native splits, including conflicting labels. They remain in place to preserve the canonical published protocol.
+
+Dispatch **Train Kev CLINC150** after merging. It regenerates the data and runs Kev's CPU tokenizer admission check before starting paid H100 training; any over-limit record fails the workflow. Select a checkpoint using only its 1,500-row development result, then dispatch **Locked Test Kev CLINC150** once. That workflow scores the selected model and released baseline on the untouched 4,500-row test set with temperatures fitted only on calibration.
+
+For the in-scope accuracy reported by Casanueva et al. in [Efficient Intent Detection with Dual Sentence Encoders](https://arxiv.org/abs/2003.04807), comparison targets are BERT-TUNED 96.93%, USE 95.06%, ConveRT 97.16%, and USE+ConveRT 97.16%. Those results explicitly exclude OOS, matching this benchmark's primary score.
+
 
 ## FAQs
 ### 1. What are the relevant files?

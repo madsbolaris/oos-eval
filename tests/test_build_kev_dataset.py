@@ -53,6 +53,32 @@ class BuildKevDatasetTests(unittest.TestCase):
             build_kev_dataset.write(output, files)
             build_kev_dataset.check(output, files)
 
+    def test_full_intent_benchmark_uses_official_in_scope_rows(self):
+        spec_path = ROOT / "benchmarks" / "clinc150-intent" / "model.json"
+        spec, partitions = build_kev_dataset.build(spec_path)
+
+        self.assertEqual(
+            {name: len(rows) for name, rows in partitions.items()},
+            {"train": 15000, "calibration": 1500, "development": 1500, "test": 4500},
+        )
+        self.assertEqual(spec["domain"], "all")
+        self.assertTrue(
+            all(row["_meta"]["original_split"] == "test" for row in partitions["test"])
+        )
+        labels = {
+            row["questions"][spec["question"]["id"]]["label"]
+            for row in partitions["test"]
+        }
+        self.assertEqual(len(labels), 150)
+        self.assertNotIn("oos", labels)
+        criteria = partitions["train"][0]["questions"]["intent"]["criteria"]
+        self.assertEqual(set(criteria), labels)
+        self.assertTrue(all(description is None for description in criteria.values()))
+
+        first = build_kev_dataset.render(spec, partitions)
+        second_spec, second_partitions = build_kev_dataset.build(spec_path)
+        self.assertEqual(first, build_kev_dataset.render(second_spec, second_partitions))
+
 
 if __name__ == "__main__":
     unittest.main()
