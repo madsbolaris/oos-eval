@@ -2,3 +2,5 @@
 *.json~
 *.csv~
 .DS_Store
+runs/
+.venv/

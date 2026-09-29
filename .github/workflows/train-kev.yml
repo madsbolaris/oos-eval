@@ -1,0 +1,66 @@
+name: Train Kev
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_name:
+        description: Immutable Modal run name
+        required: true
+        default: clinc-travel-v1
+      init_from:
+        description: Released Kev checkpoint
+        required: true
+        default: jaredpalmer/kev-4b
+      deploy:
+        description: Deploy the trained run after evaluation
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  train:
+    runs-on: ubuntu-latest
+    environment: kev-training
+    env:
+      MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
+      MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
+      KEV_REF: f2bb629d670f5b746f712fc05550a098526c836b
+    steps:
+      - name: Check out dataset
+        uses: actions/checkout@v4
+        with:
+          path: dataset
+      - name: Check out pinned Kev
+        uses: actions/checkout@v4
+        with:
+          repository: jaredpalmer/kev
+          ref: f2bb629d670f5b746f712fc05550a098526c836b
+          path: kev
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: astral-sh/setup-uv@v6
+      - name: Verify generated partitions
+        run: python dataset/scripts/build_kev_dataset.py --check
+      - name: Train, calibrate, and evaluate
+        run: >-
+          uvx modal run kev/skills/kev-finetune/scripts/kev_modal.py::train
+          --data dataset/generated/kev
+          --name '${{ inputs.run_name }}'
+          --init-from '${{ inputs.init_from }}'
+      - name: Deploy calibrated endpoint
+        if: inputs.deploy
+        env:
+          KEV_SERVE_RUN: ${{ inputs.run_name }}
+          KEV_SERVE_SECRET: kev-serve-key
+        run: uvx modal deploy kev/skills/kev-finetune/scripts/kev_modal.py
+      - name: Upload evaluation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.run_name }}-reports
+          path: runs/${{ inputs.run_name }}/
+          if-no-files-found: warn

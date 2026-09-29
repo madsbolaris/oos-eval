@@ -1,0 +1,105 @@
+{
+  "domain": "travel",
+  "format": "kev-labelled-requests-v1",
+  "locked": [
+    "test"
+  ],
+  "partitions": {
+    "calibration": {
+      "labels": {
+        "book_flight": 10,
+        "book_hotel": 10,
+        "car_rental": 10,
+        "carry_on": 10,
+        "exchange_rate": 10,
+        "flight_status": 10,
+        "international_visa": 10,
+        "lost_luggage": 10,
+        "oos": 10,
+        "plug_type": 10,
+        "timezone": 10,
+        "translate": 10,
+        "travel_alert": 10,
+        "travel_notification": 10,
+        "travel_suggestion": 10,
+        "vaccines": 10
+      },
+      "records": 160,
+      "sha256": "3f3394b30f31f22c0d8a4f683b43be1f357fb7f1dc8e44a98965102db9be4b5f"
+    },
+    "development": {
+      "labels": {
+        "book_flight": 10,
+        "book_hotel": 10,
+        "car_rental": 10,
+        "carry_on": 10,
+        "exchange_rate": 10,
+        "flight_status": 10,
+        "international_visa": 10,
+        "lost_luggage": 10,
+        "oos": 10,
+        "plug_type": 10,
+        "timezone": 10,
+        "translate": 10,
+        "travel_alert": 10,
+        "travel_notification": 10,
+        "travel_suggestion": 10,
+        "vaccines": 10
+      },
+      "records": 160,
+      "sha256": "0813496a488d6481fccdca467a32658a0cf857174a4df4ca686dffb8de63598d"
+    },
+    "test": {
+      "labels": {
+        "book_flight": 30,
+        "book_hotel": 30,
+        "car_rental": 30,
+        "carry_on": 30,
+        "exchange_rate": 30,
+        "flight_status": 30,
+        "international_visa": 30,
+        "lost_luggage": 30,
+        "oos": 30,
+        "plug_type": 30,
+        "timezone": 30,
+        "translate": 30,
+        "travel_alert": 30,
+        "travel_notification": 30,
+        "travel_suggestion": 30,
+        "vaccines": 30
+      },
+      "records": 480,
+      "sha256": "c3cb0f89d3d1785a1782a04ce19b72acad638ef3cde5c19a4a095df56fe25cd9"
+    },
+    "train": {
+      "labels": {
+        "book_flight": 100,
+        "book_hotel": 100,
+        "car_rental": 100,
+        "carry_on": 100,
+        "exchange_rate": 100,
+        "flight_status": 100,
+        "international_visa": 100,
+        "lost_luggage": 100,
+        "oos": 100,
+        "plug_type": 100,
+        "timezone": 100,
+        "translate": 100,
+        "travel_alert": 100,
+        "travel_notification": 100,
+        "travel_suggestion": 100,
+        "vaccines": 100
+      },
+      "records": 1600,
+      "sha256": "ea933c8892b12367ff4d7b4d2b30793ba0e8f40478f497f517fb7f58241b199b"
+    }
+  },
+  "sampling": "All selected-domain rows; out-of-scope rows capped to one class per native split in source order.",
+  "source": {
+    "data_file": "data/data_full.json",
+    "domain_file": "data/domains.json",
+    "license": "CC-BY-3.0",
+    "repository": "https://github.com/clinc/oos-eval",
+    "revision": "828f8093932c8fe6ca7936c3d2e52903b1c523de"
+  }
+}

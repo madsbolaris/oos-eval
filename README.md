@@ -3,6 +3,29 @@
 # An Evaluation Dataset for Intent Classification and Out-of-Scope Prediction
 Repository that accompanies [An Evaluation Dataset for Intent Classification and Out-of-Scope Prediction](https://www.aclweb.org/anthology/D19-1131/).
 
+## GitHub data-to-decision example
+
+This fork adds a reproducible pipeline that converts CLINC150's travel domain into labelled requests for [Kev](https://github.com/jaredpalmer/kev), an open Jev-style decision model. The original files under `data/` remain unchanged.
+
+```bash
+python3 scripts/build_kev_dataset.py
+python3 -m unittest discover -s tests -v
+python3 scripts/build_kev_dataset.py --check
+```
+
+Generated partitions are written to `generated/kev/`:
+
+- `train.jsonl`: the native travel training examples and a class-balanced out-of-scope sample
+- `calibration.jsonl`: half of each label in the native validation split, used only to fit temperature
+- `development.jsonl`: the other half of each validation label, used for model comparison
+- `test.jsonl`: a class-balanced sample from the native test split, marked as locked in `manifest.json`
+
+Every record is a TypeSafe-compatible request with a labelled `choice` question. Out-of-scope rows are selected in source order to match one in-domain class in each native split; no row moves between native splits. `model.json` pins the upstream revision, license, domain, and question definition. The manifest records the sampling rule, partition counts, and SHA-256 hashes.
+
+Pull requests run `.github/workflows/validate-kev-data.yml` without secrets. After merging, dispatch **Train Kev** with a unique run name. The protected `kev-training` environment must provide `MODAL_TOKEN_ID` and `MODAL_TOKEN_SECRET`; optional deployment also expects a Modal secret named `kev-serve-key` containing `KEV_API_KEY`.
+
+The transformed records remain derived from CLINC150 and are distributed under the repository's CC BY 3.0 license. Retain the citation below when using them.
+
 
 ## FAQs
 ### 1. What are the relevant files?
