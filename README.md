@@ -24,6 +24,8 @@ Every record is a TypeSafe-compatible request with a labelled `choice` question.
 
 Pull requests run `.github/workflows/validate-kev-data.yml` without secrets. After merging, dispatch **Train Kev** with a unique run name. The protected `kev-training` environment must provide `MODAL_TOKEN_ID` and `MODAL_TOKEN_SECRET`; optional deployment also expects a Modal secret named `kev-serve-key` containing `KEV_API_KEY`.
 
+After selecting one trained run from development results, dispatch **Locked Test Kev** exactly once with a unique result prefix. It evaluates that checkpoint and the released baseline on `test.jsonl`; both temperatures are fitted only on the unchanged calibration partition. Modal result names are immutable to discourage repeated test-set tuning.
+
 The transformed records remain derived from CLINC150 and are distributed under the repository's CC BY 3.0 license. Retain the citation below when using them.
 
 
